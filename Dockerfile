@@ -3,14 +3,14 @@ FROM node:22-bookworm AS clawdbot-build
 
 # Dependencies needed for clawdbot build
 RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git \
-    ca-certificates \
-    curl \
-    python3 \
-    make \
-    g++ \
-  && rm -rf /var/lib/apt/lists/*
+&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+git \
+ca-certificates \
+curl \
+python3 \
+make \
+g++ \
+&& rm -rf /var/lib/apt/lists/*
 
 # Install Bun (clawdbot build uses it)
 RUN curl -fsSL https://bun.sh/install | bash
@@ -27,14 +27,14 @@ RUN git clone --depth 1 --branch "${CLAWDBOT_GIT_REF}" https://github.com/clawdb
 # Patch: relax version requirements for packages that may reference unpublished versions.
 # Scope this narrowly to avoid surprising dependency mutations.
 RUN set -eux; \
-  for f in \
-    ./extensions/memory-core/package.json \
-    ./extensions/googlechat/package.json \
-  ; do \
-    if [ -f "$f" ]; then \
-      sed -i -E 's/"clawdbot"[[:space:]]*:[[:space:]]*">=[^"]+"/"clawdbot": "*"/g' "$f"; \
-    fi; \
-  done
+for f in \
+./extensions/memory-core/package.json \
+./extensions/googlechat/package.json \
+; do \
+if [ -f "$f" ]; then \
+sed -i -E 's/"clawdbot"[[:space:]]*:[[:space:]]*">=[^"]+"/"clawdbot": "*"/g' "$f"; \
+fi; \
+done
 
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm build
@@ -47,9 +47,9 @@ FROM node:22-bookworm
 ENV NODE_ENV=production
 
 RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+&& DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+ca-certificates \
+&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -62,10 +62,11 @@ COPY --from=clawdbot-build /clawdbot /clawdbot
 
 # Provide a clawdbot executable
 RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /clawdbot/dist/entry.js "$@"' > /usr/local/bin/clawdbot \
-  && chmod +x /usr/local/bin/clawdbot
+&& chmod +x /usr/local/bin/clawdbot
 
 COPY src ./src
 
 ENV PORT=8080
 EXPOSE 8080
-CMD ["node", "src/server.js"]
+# Updated to run the OpenClaw backup script before starting the app to preserve gateway token and Telegram pairing
+CMD ["/bin/bash", "-c", "chmod +x /root/.openclaw/workspace/token-backup.sh && /root/.openclaw/workspace/token-backup.sh && node src/server.js"]
